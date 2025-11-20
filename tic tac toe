@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tic-Tac-Toe</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#111827;
+      --accent:#06b6d4;
+      --muted:#9ca3af;
+      --win:#10b981;
+      --lose:#ef4444;
+      --glass: rgba(255,255,255,0.04);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:linear-gradient(180deg,#071021 0%, #081023 100%);
+      color: #e6eef6;
+      padding:20px;
+    }
+
+    .app {
+      width: 920px;
+      max-width:calc(100% - 40px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:16px;
+      box-shadow: 0 6px 30px rgba(2,6,23,0.7);
+      padding:28px;
+      display:grid;
+      grid-template-columns: 1fr 360px;
+      gap:24px;
+    }
+
+    .left{
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .board {
+      width: min(70vmin,420px);
+      aspect-ratio:1/1;
+      background:var(--card);
+      border-radius:12px;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      grid-template-rows:repeat(3,1fr);
+      gap:10px;
+      padding:10px;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+    }
+
+    .cell {
+      background:var(--glass);
+      border-radius:8px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: clamp(28px, 6vmin, 64px);
+      cursor:pointer;
+      user-select:none;
+      transition: transform 120ms ease, background 150ms;
+      color: #e6eef6;
+      font-weight:700;
+    }
+    .cell:hover { transform: translateY(-4px); background: rgba(255,255,255,0.03); }
+    .cell.disabled { cursor:default; opacity:0.85; transform:none; }
+    .cell.x { color: #60a5fa; }
+    .cell.o { color: #fef08a; }
+
+    .right {
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-width:260px;
+    }
+
+    h1 { margin:0; font-size:22px; letter-spacing:1px; color:#fff; }
+    p.muted { margin:0; color:var(--muted); font-size:13px; }
+
+    .controls {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .mode {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      background: rgba(255,255,255,0.02);
+      padding:8px;
+      border-radius:10px;
+    }
+    .mode label { font-size:13px; color:var(--muted); }
+    .mode input { margin-left:6px; accent-color: var(--accent); transform:scale(1.1); }
+
+    .scoreboard {
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+      border-radius:10px;
+      padding:12px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .scoreboard .scores { display:flex; gap:10px; align-items:center; }
+    .badge { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .badge strong{ font-size:18px; }
+    small { color:var(--muted); font-size:12px; }
+
+    .message {
+      padding:12px;
+      border-radius:8px;
+      background: rgba(255,255,255,0.02);
+      min-height:54px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      font-weight:600;
+    }
+
+    .actions { display:flex; gap:8px; justify-content:center; margin-top:8px; }
+    button {
+      background:var(--accent);
+      border:none;
+      padding:10px 14px;
+      border-radius:10px;
+      color:#052025;
+      font-weight:700;
+      cursor:pointer;
+      box-shadow: 0 6px 18px rgba(6,182,212,0.14);
+    }
+    button.ghost {
+      background:transparent;
+      color:var(--muted);
+      border:1px solid rgba(255,255,255,0.04);
+      box-shadow:none;
+    }
+    .win-line {
+      position:absolute;
+      pointer-events:none;
+      display:block;
+    }
+
+    footer.small { font-size:12px; color:var(--muted); text-align:center; margin-top:8px; grid-column:1/3; }
+
+    @media (max-width:860px){
+      .app { grid-template-columns: 1fr; }
+      .right { order:2; }
+      .left { order:1; }
+      footer.small { grid-column: auto; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Tic Tac Toe application">
+    <div class="left">
+      <h1>Tic-Tac-Toe</h1>
+      <p class="muted">Play against another player on the same device or take on the computer.</p>
+
+      <div id="board" class="board" aria-hidden="false">
+        <!-- 9 cells injected by JS -->
+      </div>
+
+      <div class="actions" style="width:100%;">
+        <button id="restartBtn">Restart Game</button>
+        <button id="resetScoreBtn" class="ghost">Reset Scores</button>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="controls">
+        <div class="mode" role="radiogroup" aria-label="Game mode">
+          <label>Two players</label>
+          <input type="radio" name="mode" id="mode-pvp" value="pvp" checked>
+          <label>Vs Computer</label>
+          <input type="radio" name="mode" id="mode-ai" value="ai">
+        </div>
+
+        <div class="mode" style="justify-content:flex-end;">
+          <label>First</label>
+          <input type="radio" name="first" id="first-x" value="X" checked>
+          <label>Second</label>
+          <input type="radio" name="first" id="first-o" value="O">
+        </div>
+      </div>
+
+      <div class="scoreboard" aria-live="polite">
+        <div class="scores">
+          <div class="badge">
+            <span style="font-size:12px;color:var(--muted)">Player X</span>
+            <strong id="scoreX">0</strong>
+          </div>
+          <div class="badge">
+            <span style="font-size:12px;color:var(--muted)">Ties</span>
+            <strong id="scoreT">0</strong>
+          </div>
+          <div class="badge">
+            <span style="font-size:12px;color:var(--muted)">Player O</span>
+            <strong id="scoreO">0</strong>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <small>Mode: <span id="modeLabel">Two players</span></small><br>
+          <small>Turn: <span id="turnLabel">X</span></small>
+        </div>
+      </div>
+
+      <div class="message" id="message" role="status">Let's play — X starts.</div>
+
+      <div style="margin-top:6px; display:flex; gap:8px; justify-content:space-between;">
+        <div style="font-size:12px;color:var(--muted)">
+          <strong>How AI works:</strong>
+          <div>Optimal Minimax AI when playing vs computer (never loses).</div>
+        </div>
+        <div>
+          <small class="muted">Tip: change who starts before first move.</small>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="small">Built with plain HTML/CSS/JS — click squares to play.</footer>
+  </div>
+
+  <script>
+    // --- Game state ---
+    const winningCombos = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    const boardEl = document.getElementById('board');
+    const messageEl = document.getElementById('message');
+    const turnLabel = document.getElementById('turnLabel');
+    const modeLabel = document.getElementById('modeLabel');
+    const scoreXEl = document.getElementById('scoreX');
+    const scoreOEl = document.getElementById('scoreO');
+    const scoreTEl = document.getElementById('scoreT');
+    const restartBtn = document.getElementById('restartBtn');
+    const resetScoreBtn = document.getElementById('resetScoreBtn');
+
+    let board = Array(9).fill(null); // 'X' | 'O' | null
+    let currentPlayer = 'X';
+    let gameActive = true;
+    let mode = 'pvp'; // 'pvp' | 'ai'
+    let scores = { X:0, O:0, T:0 };
+
+    // --- UI init ---
+    function createCells(){
+      boardEl.innerHTML = '';
+      for(let i=0;i<9;i++){
+        const div = document.createElement('div');
+        div.className = 'cell';
+        div.dataset.index = i;
+        div.setAttribute('role','button');
+        div.setAttribute('aria-label','Cell '+(i+1));
+        div.addEventListener('click', onCellClick);
+        boardEl.appendChild(div);
+      }
+    }
+
+    createCells();
+
+    // --- Helpers ---
+    function setMessage(text){
+      messageEl.textContent = text;
+    }
+    function updateLabels(){
+      turnLabel.textContent = currentPlayer;
+      modeLabel.textContent = mode === 'pvp' ? 'Two players' : 'Vs Computer';
+      scoreXEl.textContent = scores.X;
+      scoreOEl.textContent = scores.O;
+      scoreTEl.textContent = scores.T;
+    }
+
+    // check for winner or draw
+    function checkResult(b){
+      for(const combo of winningCombos){
+        const [a,b1,c] = combo;
+        if(b[a] && b[a] === b[b1] && b[a] === b[c]){
+          return { winner: b[a], combo };
+        }
+      }
+      if(b.every(s => s !== null)){
+        return { winner: null }; // draw
+      }
+      return null; // game continues
+    }
+
+    // paint board
+    function renderBoard(){
+      const cells = boardEl.querySelectorAll('.cell');
+      cells.forEach((cell, idx) => {
+        const val = board[idx];
+        cell.textContent = val ? val : '';
+        cell.classList.toggle('x', val === 'X');
+        cell.classList.toggle('o', val === 'O');
+        cell.classList.toggle('disabled', !!val || !gameActive);
+      });
+    }
+
+    // handle when a cell clicked
+    function onCellClick(e){
+      if(!gameActive) return;
+      const idx = Number(e.currentTarget.dataset.index);
+      if(board[idx]) return;
+      makeMove(idx, currentPlayer);
+    }
+
+    function makeMove(idx, player){
+      if(board[idx] || !gameActive) return;
+      board[idx] = player;
+      renderBoard();
+      const res = checkResult(board);
+      if(res){
+        gameActive = false;
+        if(res.winner){
+          setMessage(\`\${res.winner} wins!\`);
+          scores[res.winner]++;
+          highlightWinningCombo(res.combo);
+        } else {
+          setMessage('It\'s a draw!');
+          scores.T++;
+        }
+        updateLabels();
+        return;
+      }
+      // switch turns
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      updateLabels();
+      setMessage(\`Turn: \${currentPlayer}\`);
+      // if mode is AI and it's computer's turn, let AI move
+      if(mode === 'ai' && gameActive){
+        const firstPlayer = document.querySelector('input[name="first"]:checked').value || 'X';
+        // Determine which side is human and which is AI:
+        // We'll assume the human is the one who started when the game began; but simpler:
+        // If currentPlayer equals the chosen 'first' or not? We'll make AI play as the opposite of the human choice.
+        // Actually better: if human chose first (X/O), then AI is the opposite symbol.
+        const humanFirst = document.querySelector('input[name="first"]:checked').value;
+        // If humanFirst === 'X', human is X, AI is O. If humanFirst === 'O', human is O, AI is X.
+        const aiSymbol = humanFirst === 'X' ? 'O' : 'X';
+        if(currentPlayer === aiSymbol){
+          // Slight delay for UX
+          setTimeout(()=> {
+            const aiMove = getBestMove(board.slice(), aiSymbol);
+            makeMove(aiMove, aiSymbol);
+          }, 300);
+        }
+      }
+    }
+
+    // Highlight winning cells
+    function highlightWinningCombo(combo){
+      const cells = boardEl.querySelectorAll('.cell');
+      combo.forEach(i => cells[i].style.outline = '3px solid rgba(16,185,129,0.18)');
+    }
+
+    // --- Minimax AI ---
+    // AI tries to maximize its score, minimize opponent's.
+    function getBestMove(b, aiPlayer){
+      const huPlayer = aiPlayer === 'X' ? 'O' : 'X';
+      // if board empty and ai starts, pick center for a stronger opening
+      if(b.every(s => s === null)){
+        return 4; // center
+      }
+
+      function minimax(boardState, player){
+        const result = checkResult(boardState);
+        if(result){
+          if(result.winner === aiPlayer) return { score: 10 };
+          else if(result.winner === huPlayer) return { score: -10 };
+          else return { score: 0 }; // draw
+        }
+
+        const moves = [];
+        for(let i=0;i<9;i++){
+          if(!boardState[i]){
+            const move = {};
+            move.index = i;
+            boardState[i] = player;
+
+            if(player === aiPlayer){
+              const res = minimax(boardState, huPlayer);
+              move.score = res.score;
+            } else {
+              const res = minimax(boardState, aiPlayer);
+              move.score = res.score;
+            }
+            boardState[i] = null;
+            moves.push(move);
+          }
+        }
+
+        // choose best move
+        let bestMove;
+        if(player === aiPlayer){
+          let bestScore = -Infinity;
+          moves.forEach(m => { if(m.score > bestScore){ bestScore = m.score; bestMove = m; }});
+        } else {
+          let bestScore = Infinity;
+          moves.forEach(m => { if(m.score < bestScore){ bestScore = m.score; bestMove = m; }});
+        }
+        return bestMove;
+      }
+
+      return minimax(b, aiPlayer).index;
+    }
+
+    // --- Controls ---
+    document.getElementById('mode-pvp').addEventListener('change', (e) => {
+      mode = e.target.value;
+      updateLabels();
+      setMessage('Mode changed: Two players. Restart to apply who starts.');
+      // don't restart automatically; user can restart
+    });
+    document.getElementById('mode-ai').addEventListener('change', (e) => {
+      mode = e.target.value;
+      updateLabels();
+      setMessage('Mode changed: Vs Computer. Choose who starts then play.');
+    });
+
+    document.querySelectorAll('input[name="first"]').forEach(el => {
+      el.addEventListener('change', () => {
+        // Only affects next restart; but reflect in UI
+        const first = document.querySelector('input[name="first"]:checked').value;
+        setMessage('Selected ' + first + ' to start. Click Restart to apply.');
+      });
+    });
+
+    restartBtn.addEventListener('click', startNewGame);
+    resetScoreBtn.addEventListener('click', () => {
+      scores = { X:0, O:0, T:0 };
+      updateLabels();
+      setMessage('Scores reset. Good luck!');
+    });
+
+    // start game with selected 'first'
+    function startNewGame(){
+      board = Array(9).fill(null);
+      gameActive = true;
+      const first = document.querySelector('input[name="first"]:checked').value || 'X';
+      currentPlayer = first;
+      // clear outlines
+      boardEl.querySelectorAll('.cell').forEach(c => c.style.outline = 'none');
+      renderBoard();
+      updateLabels();
+      setMessage(\`New game — \${currentPlayer} to start.\`);
+      // If vs AI and AI is set to start, make AI move immediately
+      if(mode === 'ai'){
+        const humanFirst = document.querySelector('input[name="first"]:checked').value;
+        const aiSymbol = humanFirst === 'X' ? 'O' : 'X';
+        if(currentPlayer === aiSymbol){
+          setTimeout(()=> {
+            const aiMove = getBestMove(board.slice(), aiSymbol);
+            makeMove(aiMove, aiSymbol);
+          }, 400);
+        }
+      }
+    }
+
+    // initialize UI and labels
+    updateLabels();
+    renderBoard();
+    setMessage("Choose mode and who starts, then press Restart to begin. Or just play (X starts by default).");
+
+    // set initial default: X starts
+    document.getElementById('first-x').checked = true;
+
+    // keyboard accessibility: number keys 1..9 to move (optional)
+    window.addEventListener('keydown', (e) => {
+      if(!gameActive) return;
+      const keyMap = {
+        '1':6,'2':7,'3':8,
+        '4':3,'5':4,'6':5,
+        '7':0,'8':1,'9':2
+      };
+      if(e.key in keyMap){
+        const idx = keyMap[e.key];
+        // if mode is AI and it's AI's turn, ignore
+        if(mode === 'ai'){
+          const humanFirst = document.querySelector('input[name="first"]:checked').value;
+          const aiSymbol = humanFirst === 'X' ? 'O' : 'X';
+          if(currentPlayer === aiSymbol) return;
+        }
+        makeMove(idx, currentPlayer);
+      }
+    });
+
+  </script>
+</body>
+</html>
