@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Responsive Landing Page — Fixed Interactive Nav</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1f2026;
+    --panel:#27272f;
+    --muted:#bfc3cc;
+    --accent:#4ee1c1;
+    --accent-2:#6ea8fe;
+    --glass: rgba(255,255,255,0.04);
+    --nav-height: 80px;
+    --nav-height-scrolled: 60px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    background: linear-gradient(180deg,#16161a 0%, #1f2026 100%);
+    color:#fff; -webkit-font-smoothing:antialiased;
+    line-height:1.4;
+  }
+
+  /* ---------- NAV ---------- */
+  header.site-header{
+    position:fixed;
+    inset:0 0 auto 0;
+    top:0;
+    width:100%;
+    z-index:1200;
+    transition: background-color .28s ease, backdrop-filter .28s ease, height .28s ease, box-shadow .28s ease, padding .28s;
+    height:var(--nav-height);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    pointer-events:auto;
+  }
+
+  .nav-inner{
+    width:100%;
+    max-width:1200px;
+    display:flex;
+    gap:20px;
+    align-items:center;
+    padding:12px 20px;
+  }
+
+  .brand {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-right:auto;
+  }
+
+  .logo {
+    width:42px; height:42px; border-radius:10px;
+    background: linear-gradient(135deg,var(--accent), var(--accent-2));
+    display:inline-block;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 -3px 0 rgba(0,0,0,0.12);
+  }
+  .brand h1{
+    font-size:18px; margin:0; font-weight:700; letter-spacing:0.6px;
+  }
+  .brand p{ margin:0; font-size:12px; color:var(--muted); margin-top:2px;}
+
+  nav.main-nav {
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  nav.main-nav ul{ list-style:none; margin:0; padding:0; display:flex; gap:6px; align-items:center;}
+  nav.main-nav a{
+    display:inline-block;
+    padding:8px 14px;
+    color:var(--muted);
+    text-decoration:none;
+    border-radius:8px;
+    font-weight:600;
+    transition: color .18s, background-color .18s, transform .12s, box-shadow .12s;
+    outline: none;
+  }
+  nav.main-nav a:hover,
+  nav.main-nav a:focus{
+    color:#fff;
+    background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+  }
+
+  /* Active link style */
+  nav.main-nav a.active {
+    color: #0b0b0b;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+  }
+
+  /* Right side actions */
+  .actions { margin-left:12px; display:flex; gap:8px; align-items:center;}
+  .cta {
+    padding:9px 14px; border-radius:8px; background:transparent; border:1px solid rgba(255,255,255,0.06);
+    color:var(--muted); font-weight:700; text-decoration:none;
+  }
+
+  /* scrolled state: subtle background and reduced height */
+  header.site-header.scrolled{
+    background: linear-gradient(180deg, rgba(10,10,12,0.7), rgba(10,10,12,0.45));
+    backdrop-filter: blur(6px) saturate(120%);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+    height:var(--nav-height-scrolled);
+  }
+
+  /* ---------- HAMBURGER for small screens ---------- */
+  .hamburger {
+    display:none;
+    width:44px; height:44px; border-radius:10px; background:transparent; border:0;
+    align-items:center; justify-content:center; cursor:pointer;
+  }
+  .hamburger .bar { width:20px; height:2px; background:var(--muted); display:block; transform-origin:center; transition: transform .2s, opacity .2s; }
+
+  .hamburger.open .bar { background:#fff; transform: rotate(45deg); }
+  .hamburger.open .bar::after { transform: rotate(-90deg); }
+
+  /* Mobile menu overlay */
+  .mobile-menu {
+    position:fixed; inset:var(--nav-height) 0 0 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.65), rgba(0,0,0,0.55));
+    backdrop-filter: blur(6px);
+    display:none;
+    z-index:1100;
+    padding:24px;
+  }
+  .mobile-menu.open { display:block; }
+
+  .mobile-menu nav a {
+    display:block; padding:14px 12px; margin-bottom:8px; border-radius:8px; color:var(--muted);
+  }
+  .mobile-menu nav a.active { color:#fff; background: rgba(255,255,255,0.04); }
+
+  /* ---------- PAGE LAYOUT ---------- */
+  main {
+    padding-top: calc(var(--nav-height) + 28px);
+    max-width:1200px; margin:0 auto; padding-left:20px; padding-right:20px;
+  }
+
+  section.hero {
+    min-height:80vh; display:flex; align-items:center; gap:32px; padding:48px 0;
+  }
+  .hero-left {
+    flex:1 1 55%;
+    max-width:640px;
+  }
+  h2 { font-size: clamp(28px, 6vw, 48px); margin:0 0 14px 0; line-height:1.02; }
+  p.lead { color:var(--muted); font-size:18px; margin:0 0 18px 0; }
+
+  .hero-cta { display:flex; gap:12px; margin-top:18px; }
+  .btn {
+    padding:12px 18px; border-radius:10px; text-decoration:none; font-weight:700;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:#061014;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  .btn.secondary {
+    background:transparent; border:1px solid rgba(255,255,255,0.06); color:var(--muted);
+  }
+
+  /* sample content sections */
+  section { padding:60px 0; border-top: 1px solid rgba(255,255,255,0.02); }
+  .grid { display:grid; grid-template-columns: repeat(3,1fr); gap:20px; margin-top:18px; }
+  .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+         padding:18px; border-radius:12px; min-height:120px; }
+  footer { padding:40px 0; color:var(--muted); text-align:center; }
+
+  /* responsive adjustments */
+  @media (max-width:900px){
+    .grid { grid-template-columns: repeat(2,1fr); }
+    .hero-left { flex-basis:100%; }
+  }
+  @media (max-width:720px){
+    nav.main-nav { display:none; }
+    .hamburger { display:flex; margin-left:auto; }
+    .mobile-menu nav a { font-size:18px; }
+    .grid { grid-template-columns: 1fr; }
+    main { padding-top: calc(var(--nav-height-scrolled) + 12px); }
+  }
+
+  /* Utilities for focus */
+  a:focus { outline: 3px solid rgba(110,231,183,0.14); outline-offset:2px; }
+</style>
+</head>
+<body>
+  <header class="site-header" id="siteHeader" role="banner">
+    <div class="nav-inner">
+      <div class="brand" aria-hidden="false">
+        <span class="logo" aria-hidden="true"></span>
+        <div>
+          <h1>Company</h1>
+          <p>Product landing</p>
+        </div>
+      </div>
+
+      <nav class="main-nav" role="navigation" aria-label="Primary">
+        <ul id="navList">
+          <li><a href="#home" data-target="home" class="nav-link">Home</a></li>
+          <li><a href="#features" data-target="features" class="nav-link">Features</a></li>
+          <li><a href="#pricing" data-target="pricing" class="nav-link">Pricing</a></li>
+          <li><a href="#about" data-target="about" class="nav-link">About</a></li>
+          <li><a href="#contact" data-target="contact" class="nav-link">Contact</a></li>
+        </ul>
+      </nav>
+
+      <div class="actions" role="group" aria-label="Header actions">
+        <a href="#signup" class="cta">Sign up</a>
+
+        <!-- hamburger -->
+        <button class="hamburger" id="hamburger" aria-expanded="false" aria-controls="mobileMenu" aria-label="Open menu">
+          <span class="bar" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- mobile overlay -->
+    <div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+      <nav role="navigation" aria-label="Mobile primary">
+        <a href="#home" data-target="home" class="mobile-link">Home</a>
+        <a href="#features" data-target="features" class="mobile-link">Features</a>
+        <a href="#pricing" data-target="pricing" class="mobile-link">Pricing</a>
+        <a href="#about" data-target="about" class="mobile-link">About</a>
+        <a href="#contact" data-target="contact" class="mobile-link">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="home" class="hero" tabindex="-1" aria-label="Home section">
+      <div class="hero-left">
+        <h2>Beautiful responsive landing page<br><span style="color:var(--accent)">with an interactive navigation</span></h2>
+        <p class="lead">The navigation stays fixed, highlights the active section on scroll and reacts to hover. Works on mobile with an accessible hamburger menu.</p>
+        <div class="hero-cta">
+          <a class="btn" href="#signup">Get started</a>
+          <a class="btn secondary" href="#features">Learn more</a>
+        </div>
+      </div>
+      <div style="flex:1; display:flex; align-items:center; justify-content:center">
+        <div style="width:320px; height:220px; background:linear-gradient(135deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03)); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--muted)">
+          <div>
+            <div style="font-weight:700; font-size:20px">Hero visual</div>
+            <div style="margin-top:8px">Put an image or demo here</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" aria-label="Features section">
+      <h3>Features</h3>
+      <p class="lead">A few highlights of the product and the interactive nav behaviour.</p>
+      <div class="grid" role="list">
+        <div class="card" role="listitem"><strong>Interactive nav</strong><p style="color:var(--muted)">Highlights the active page and changes style on scroll.</p></div>
+        <div class="card" role="listitem"><strong>Responsive</strong><p style="color:var(--muted)">Mobile menu with touch-friendly items and keyboard support.</p></div>
+        <div class="card" role="listitem"><strong>Accessible</strong><p style="color:var(--muted)">Focus states, aria attributes and smooth keyboard navigation.</p></div>
+      </div>
+    </section>
+
+    <section id="pricing" aria-label="Pricing section">
+      <h3>Pricing</h3>
+      <div class="grid">
+        <div class="card"><strong>Free</strong><p style="color:var(--muted)">Good for trials.</p></div>
+        <div class="card"><strong>Pro</strong><p style="color:var(--muted)">Most popular for small teams.</p></div>
+        <div class="card"><strong>Enterprise</strong><p style="color:var(--muted)">For large organizations.</p></div>
+      </div>
+    </section>
+
+    <section id="about" aria-label="About section">
+      <h3>About</h3>
+      <p style="color:var(--muted)">Short about copy. Use this area to describe the company or product mission.</p>
+    </section>
+
+    <section id="contact" aria-label="Contact section">
+      <h3>Contact</h3>
+      <p style="color:var(--muted)">Get in touch or sign up for updates below.</p>
+      <div style="margin-top:18px;">
+        <form onsubmit="event.preventDefault()" aria-label="Signup form" style="display:flex; gap:8px; flex-wrap:wrap;">
+          <input type="email" placeholder="Your email" aria-label="Email" style="padding:12px;border-radius:8px;border:0;min-width:220px" />
+          <button class="btn" type="submit">Subscribe</button>
+        </form>
+      </div>
+      <div id="signup" style="height:1px;"></div>
+    </section>
+
+    <footer>
+      <small>© Company — responsive landing page demo</small>
+    </footer>
+  </main>
+
+<script>
+/*
+  Nav behavior:
+  - On scroll: add `.scrolled` to header when past threshold
+  - Active link: determine which section is visible using IntersectionObserver
+  - Smooth scroll for link clicks
+  - Mobile menu toggle with accessible aria attributes
+*/
+
+// Elements
+const header = document.getElementById('siteHeader');
+const navLinks = Array.from(document.querySelectorAll('.nav-link'));
+const mobileLinks = Array.from(document.querySelectorAll('.mobile-link'));
+const hamburger = document.getElementById('hamburger');
+const mobileMenu = document.getElementById('mobileMenu');
+const sections = Array.from(document.querySelectorAll('main section[id]'));
+
+// 1) Change header style on scroll (threshold)
+const SCROLL_THRESHOLD = 40;
+function onScroll() {
+  if (window.scrollY > SCROLL_THRESHOLD) header.classList.add('scrolled');
+  else header.classList.remove('scrolled');
+}
+document.addEventListener('scroll', onScroll, {passive:true});
+onScroll(); // init
+
+// 2) Smooth scroll for nav clicks (both desktop and mobile)
+function smoothScrollTo(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const navHeight = header.offsetHeight;
+  const top = el.getBoundingClientRect().top + window.scrollY - navHeight + 12; // little offset
+  window.scrollTo({ top, behavior: 'smooth' });
+  // close mobile menu if open
+  closeMobileMenu();
+}
+
+navLinks.forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = link.dataset.target;
+    smoothScrollTo(target);
+    // set focus to section for keyboard users after scroll finishes (approx)
+    setTimeout(()=> {
+      const sec = document.getElementById(target);
+      if (sec) sec.focus({preventScroll:true});
+    }, 500);
+  });
+});
+mobileLinks.forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = link.dataset.target;
+    smoothScrollTo(target);
+  });
+});
+
+// 3) Mobile menu toggle
+function openMobileMenu() {
+  mobileMenu.classList.add('open');
+  mobileMenu.style.display = 'block';
+  hamburger.classList.add('open');
+  hamburger.setAttribute('aria-expanded','true');
+  mobileMenu.setAttribute('aria-hidden','false');
+  // trap focus: move focus to first mobile link
+  setTimeout(() => {
+    const first = mobileMenu.querySelector('a');
+    if (first) first.focus();
+  }, 40);
+}
+function closeMobileMenu() {
+  mobileMenu.classList.remove('open');
+  mobileMenu.style.display = 'none';
+  hamburger.classList.remove('open');
+  hamburger.setAttribute('aria-expanded','false');
+  mobileMenu.setAttribute('aria-hidden','true');
+  hamburger.focus();
+}
+hamburger.addEventListener('click', () => {
+  const expanded = hamburger.getAttribute('aria-expanded') === 'true';
+  if (expanded) closeMobileMenu(); else openMobileMenu();
+});
+
+// close mobile menu on Escape
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') {
+    closeMobileMenu();
+  }
+});
+
+// 4) Active link on scroll — use IntersectionObserver
+const observerOptions = {
+  root: null,
+  rootMargin: '0px 0px -55% 0px', // when section passes mid-ish viewport
+  threshold: 0
+};
+
+function onIntersection(entries) {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      setActiveLink(id);
+    }
+  });
+}
+
+const observer = new IntersectionObserver(onIntersection, observerOptions);
+sections.forEach(sec => observer.observe(sec));
+
+function setActiveLink(id) {
+  navLinks.forEach(a => a.classList.toggle('active', a.dataset.target === id));
+  mobileLinks.forEach(a => a.classList.toggle('active', a.dataset.target === id));
+}
+
+// 5) Improve hover: add a subtle animation via JS if needed (CSS handles hover already)
+
+// 6) Accessibility: make nav links focusable and keyboard friendly (they are anchors)
+
+// 7) Ensure header shrinks immediately when focusing a section via keyboard
+// (no extra code required — scrolled class is based on scroll position)
+
+// Initial highlight
+// If page loads with hash, scroll into view properly
+if (window.location.hash) {
+  const hash = window.location.hash.slice(1);
+  setTimeout(() => smoothScrollTo(hash), 10);
+}
+
+// Optionally: update URL hash as user navigates (without jump)
+let updateHashTimeout = null;
+function updateHash(id) {
+  if (!id) return;
+  // debounce updates to avoid too many history entries
+  if (updateHashTimeout) clearTimeout(updateHashTimeout);
+  updateHashTimeout = setTimeout(() => {
+    history.replaceState(null, '', '#' + id);
+  }, 200);
+}
+
+// Enhance intersection handler to update URL
+function onIntersectionWithHash(entries) {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      setActiveLink(id);
+      updateHash(id);
+    }
+  });
+}
+const observer2 = new IntersectionObserver(onIntersectionWithHash, observerOptions);
+sections.forEach(sec => observer2.observe(sec));
+
+</script>
+</body>
+</html>
