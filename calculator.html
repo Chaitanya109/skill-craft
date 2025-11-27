@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Calculator Web App</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121217; --panel:#1b1b21; --accent:#6ee7b7; --muted:#9aa0a6; --danger:#ff6b6b;
+    --btn:#2a2a30; --btn-plain:#2f3136;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; display:flex; align-items:center; justify-content:center;
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    background: linear-gradient(180deg,#0f0f11 0%, #121217 100%); color:#fff; padding:20px;
+  }
+
+  .calculator {
+    width:100%; max-width:420px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+    border-radius:14px; padding:18px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  }
+
+  .display {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03));
+    border-radius:10px; padding:14px;
+    display:flex; flex-direction:column; gap:8px;
+    margin-bottom:12px;
+  }
+
+  .expr {
+    color:var(--muted);
+    font-size:14px;
+    min-height:18px;
+    word-break:break-all;
+  }
+
+  .result {
+    font-weight:800; font-size:34px; text-align:right; letter-spacing:0.6px;
+    color:var(--accent);
+  }
+
+  .keyboard {
+    display:grid;
+    grid-template-columns: repeat(4,1fr);
+    gap:10px;
+  }
+
+  button {
+    appearance:none; border:0; border-radius:10px; padding:14px 12px; cursor:pointer;
+    background:var(--btn); color:#fff; font-size:18px; font-weight:600;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2);
+  }
+  button.operator { background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.03)); color:var(--muted); }
+  button.equal { background: linear-gradient(90deg, rgba(110,231,183,0.12), rgba(110,231,183,0.06)); color:var(--accent); }
+  button.clear { background: linear-gradient(90deg, rgba(255,107,107,0.07), rgba(255,107,107,0.04)); color:var(--danger); }
+  .wide { grid-column: span 2; }
+
+  .footer {
+    margin-top:12px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:13px;
+  }
+
+  .history {
+    margin-top:10px; color:var(--muted); font-size:13px;
+  }
+
+  @media (max-width:420px){
+    .result { font-size:28px; }
+    button { padding:12px 8px; font-size:16px; }
+  }
+</style>
+</head>
+<body>
+  <main class="calculator" role="application" aria-label="Calculator">
+    <div class="display" id="displayArea">
+      <div id="expr" class="expr" aria-live="polite"></div>
+      <div id="result" class="result" aria-live="polite">0</div>
+    </div>
+
+    <div class="keyboard" role="group" aria-label="Calculator buttons">
+      <button class="clear" data-action="ac" title="All Clear (Esc)">AC</button>
+      <button class="clear" data-action="clear" title="Clear entry (C or Backspace)">C</button>
+      <button data-action="back" title="Backspace (Backspace)">⌫</button>
+      <button class="operator" data-action="/" title="Divide (/)">÷</button>
+
+      <button data-action="7">7</button>
+      <button data-action="8">8</button>
+      <button data-action="9">9</button>
+      <button class="operator" data-action="*" title="Multiply (*)">×</button>
+
+      <button data-action="4">4</button>
+      <button data-action="5">5</button>
+      <button data-action="6">6</button>
+      <button class="operator" data-action="-" title="Minus (-)">−</button>
+
+      <button data-action="1">1</button>
+      <button data-action="2">2</button>
+      <button data-action="3">3</button>
+      <button class="operator" data-action="+" title="Plus (+)">+</button>
+
+      <button data-action="+/-" title="Toggle sign">±</button>
+      <button data-action="0">0</button>
+      <button data-action="." title="Decimal point">.</button>
+      <button class="equal wide" data-action="=" title="Equals (Enter)">=</button>
+    </div>
+
+    <div class="footer">
+      <div>Keys: 0-9 . + - * / Enter = Backspace Esc</div>
+      <div>
+        <button id="copyBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.04);padding:6px 8px;border-radius:8px;color:var(--muted)">Copy</button>
+      </div>
+    </div>
+
+    <div class="history" id="history" aria-live="polite"></div>
+  </main>
+
+<script>
+/*
+  Calculator App
+  - Uses shunting-yard to parse infix expressions, then evaluates RPN
+  - Buttons and keyboard handling
+  - Error handling for invalid expressions and div-by-zero
+*/
+
+(function(){
+  const exprEl = document.getElementById('expr');
+  const resultEl = document.getElementById('result');
+  const historyEl = document.getElementById('history');
+  const copyBtn = document.getElementById('copyBtn');
+
+  // Internal expression tokens
+  // We'll keep a string expression for display and parsing (tokens: numbers, operators, parentheses)
+  let expression = '';     // displayed infix expression
+  let lastResult = null;
+
+  // Utility: is operator
+  const ops = {
+    '+': {prec: 1, assoc: 'L'},
+    '-': {prec: 1, assoc: 'L'},
+    '*': {prec: 2, assoc: 'L'},
+    '/': {prec: 2, assoc: 'L'},
+  };
+
+  function updateUI(){
+    exprEl.textContent = expression || '';
+    if (expression === '') {
+      if (lastResult === null) resultEl.textContent = '0';
+      else resultEl.textContent = String(lastResult);
+    }
+  }
+
+  // Parse the expression string into tokens (numbers, operators, parentheses)
+  function tokenize(str) {
+    const tokens = [];
+    let i = 0;
+    while (i < str.length) {
+      const ch = str[i];
+      if (/\s/.test(ch)) { i++; continue; }
+      if (ch === '(' || ch === ')') { tokens.push(ch); i++; continue; }
+      if (/[+\-*/]/.test(ch)) {
+        // handle unary minus: if at start or after '(' or another operator, treat as unary by attaching to number
+        if (ch === '-' ) {
+          const prev = tokens.length ? tokens[tokens.length-1] : null;
+          if (prev === null || prev === '(' || (typeof prev === 'string' && /[+\-*/]/.test(prev))) {
+            // unary minus -> attach to following number (we'll token as 'u-' placeholder)
+            tokens.push('u-');
+            i++;
+            continue;
+          }
+        }
+        tokens.push(ch); i++; continue;
+      }
+      // number (digits with optional decimal)
+      if (/\d|\./.test(ch)) {
+        let j = i;
+        let dotCount = 0;
+        while (j < str.length && /[\d.]/.test(str[j])) {
+          if (str[j] === '.') dotCount++;
+          if (dotCount > 1) throw new Error('Invalid number format');
+          j++;
+        }
+        const numStr = str.slice(i,j);
+        if (numStr === '.') throw new Error('Invalid number format');
+        tokens.push(numStr);
+        i = j;
+        continue;
+      }
+      throw new Error('Invalid character: ' + ch);
+    }
+    return tokens;
+  }
+
+  // Convert infix tokens -> RPN using shunting-yard
+  function shuntingYard(tokens) {
+    const output = [];
+    const stack = [];
+    tokens.forEach(token => {
+      if (!isNaN(Number(token))) { // number
+        output.push(Number(token));
+      } else if (token === 'u-') {
+        // unary minus, push a marker 'u-' that we'll apply by making next number negative
+        stack.push('u-');
+      } else if (token in ops) {
+        while (stack.length) {
+          const top = stack[stack.length-1];
+          if (top in ops && (
+               (ops[token].assoc === 'L' && ops[token].prec <= ops[top].prec) ||
+               (ops[token].assoc === 'R' && ops[token].prec < ops[top].prec)
+             )) {
+            output.push(stack.pop());
+          } else break;
+        }
+        stack.push(token);
+      } else if (token === '(') {
+        stack.push(token);
+      } else if (token === ')') {
+        let found = false;
+        while (stack.length) {
+          const t = stack.pop();
+          if (t === '(') { found = true; break; }
+          output.push(t);
+        }
+        if (!found) throw new Error('Mismatched parentheses');
+      } else {
+        throw new Error('Unknown token: ' + token);
+      }
+    });
+
+    while (stack.length) {
+      const t = stack.pop();
+      if (t === '(' || t === ')') throw new Error('Mismatched parentheses');
+      output.push(t);
+    }
+    return output;
+  }
+
+  // Evaluate RPN array (numbers and operator strings)
+  function evalRPN(rpn) {
+    const st = [];
+    for (const token of rpn) {
+      if (typeof token === 'number') {
+        st.push(token);
+      } else if (token === 'u-') {
+        // unary minus: apply to last pushed number
+        if (st.length === 0) throw new Error('Invalid unary minus');
+        const v = st.pop();
+        st.push(-v);
+      } else if (token in ops) {
+        if (st.length < 2) throw new Error('Invalid expression');
+        const b = st.pop();
+        const a = st.pop();
+        let res;
+        if (token === '+') res = a + b;
+        else if (token === '-') res = a - b;
+        else if (token === '*') res = a * b;
+        else if (token === '/') {
+          if (b === 0) throw new Error('Division by zero');
+          res = a / b;
+        } else throw new Error('Unknown operator ' + token);
+        // guard floating point tiny imprecision
+        if (Math.abs(Math.round(res) - res) < 1e-12) res = Math.round(res);
+        st.push(res);
+      } else {
+        throw new Error('Unknown RPN token ' + token);
+      }
+    }
+    if (st.length !== 1) throw new Error('Invalid expression');
+    return st[0];
+  }
+
+  // Public evaluate function
+  function evaluateExpression(str) {
+    if (!str || !str.trim()) throw new Error('Empty expression');
+    const tokens = tokenize(str);
+    // Fix unary minus placement: convert 'u-' followed by number into negative number in output by shunting yard with u- handling
+    const rpn = shuntingYard(tokens);
+    const val = evalRPN(rpn);
+    return val;
+  }
+
+  // Button handlers
+  function appendToExpression(s) {
+    expression += s;
+    updateUI();
+  }
+
+  function clearEntry() {
+    // Remove last contiguous token (number or operator or parenthesis)
+    if (!expression) return;
+    // if last char is space (shouldn't) trim
+    let i = expression.length - 1;
+    // if last is digit or decimal: remove until non-digit/. 
+    if (/\d|\./.test(expression[i])) {
+      while (i >= 0 && /[\d.]/.test(expression[i])) i--;
+      expression = expression.slice(0, i+1);
+    } else {
+      // remove single char (operator or parenthesis)
+      expression = expression.slice(0, -1);
+    }
+    updateUI();
+  }
+
+  function allClear() {
+    expression = '';
+    lastResult = null;
+    updateUI();
+    historyEl.textContent = '';
+  }
+
+  function backspaceOne() {
+    if (expression.length > 0) expression = expression.slice(0, -1);
+    updateUI();
+  }
+
+  function toggleSign() {
+    // Toggle sign of the last number token in the expression (smart)
+    // Find last number start index
+    let i = expression.length - 1;
+    // skip spaces
+    while (i >= 0 && expression[i] === ' ') i--;
+    if (i < 0) return;
+    // if last char is digit or dot:
+    if (/[\d.]/.test(expression[i])) {
+      let j = i;
+      while (j >= 0 && /[\d.]/.test(expression[j])) j--;
+      const numStart = j+1;
+      const num = expression.slice(numStart, i+1);
+      const before = expression.slice(0, numStart);
+      // if there's a '-' just before number and before that either start or '(' or operator, convert to positive by removing '-'
+      if (before.endsWith('-')) {
+        // But ensure it's unary minus, i.e., either at start or preceded by '(' or operator
+        const k = numStart - 2;
+        if (k < 0 || /[+\-*/(]/.test(before[k])) {
+          expression = before.slice(0, -1) + num; // remove '-' unary
+        } else {
+          expression = before + '(' + '-' + num + ')';
+        }
+      } else {
+        // Insert unary minus before number
+        expression = before + '(-' + num + ')' ;
+      }
+    } else {
+      // if last char is ')' maybe change sign of the parenthesized value? For simplicity, prepend '(-1)*' before last token
+      expression += '*(-1)';
+    }
+    updateUI();
+  }
+
+  function doEquals() {
+    try {
+      const val = evaluateExpression(expression);
+      lastResult = val;
+      resultEl.textContent = String(val);
+      historyEl.textContent = 'Ans = ' + val;
+      // set expression to result (so user can continue calculating)
+      expression = String(val);
+    } catch (err) {
+      resultEl.textContent = 'Error';
+      historyEl.textContent = err.message || 'Invalid expression';
+    }
+    updateUI();
+  }
+
+  // Button click wiring
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const a = btn.getAttribute('data-action');
+      if (!isNaN(Number(a)) ) { appendToExpression(a); return; }
+      switch (a) {
+        case '.': appendToExpression('.'); break;
+        case '+': case '-': case '*': case '/': appendToExpression(a); break;
+        case '+/-': toggleSign(); break;
+        case '=': doEquals(); break;
+        case 'ac': allClear(); break;
+        case 'clear': clearEntry(); break;
+        case 'back': backspaceOne(); break;
+        default: break;
+      }
+    });
+  });
+
+  // Keyboard handling
+  window.addEventListener('keydown', (ev) => {
+    const tag = document.activeElement && document.activeElement.tagName;
+    // allow typing if not input/textarea (rare here)
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+    if ((ev.key >= '0' && ev.key <= '9') || '+-*/().'.includes(ev.key)) {
+      ev.preventDefault();
+      appendToExpression(ev.key === '*' ? '*' : ev.key);
+    } else if (ev.key === 'Enter' || ev.key === '=') {
+      ev.preventDefault();
+      doEquals();
+    } else if (ev.key === 'Backspace') {
+      ev.preventDefault();
+      backspaceOne();
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      allClear();
+    } else if (ev.key === '%') {
+      ev.preventDefault();
+      // interpret % as divide by 100 applied to previous number: transform '123%' -> '(123/100)'
+      // We'll just append '/100' so '50%' becomes '50/100'
+      appendToExpression('/100');
+    } else if (ev.key === '_') {
+      // ignore
+    }
+  });
+
+  // Copy result
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(resultEl.textContent || '');
+      copyBtn.textContent = 'Copied!';
+      setTimeout(()=> copyBtn.textContent = 'Copy', 1000);
+    } catch {
+      copyBtn.textContent = 'Fail';
+      setTimeout(()=> copyBtn.textContent = 'Copy', 1000);
+    }
+  });
+
+  // Initialize UI
+  updateUI();
+
+  // Expose small API for testing/debug (not necessary)
+  window._calc = { evaluateExpression };
+})();
+</script>
+</body>
+</html>
