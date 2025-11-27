@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quiz Game Application</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;900&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#1f2129;
+    --panel:#272933;
+    --accent:#4ee1c1;
+    --wrong:#ff6b6b;
+    --muted:#bfc3cc;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:Inter,system-ui; 
+    background:var(--bg); color:#fff; 
+    display:flex; justify-content:center; align-items:center;
+    padding:20px;
+  }
+
+  .quiz-container{
+    width:100%; max-width:700px;
+    background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(0,0,0,0.04));
+    padding:32px; border-radius:16px;
+    box-shadow:0 10px 28px rgba(0,0,0,0.6);
+  }
+
+  h1{
+    text-align:center; margin-top:0;
+    font-size:30px; color:var(--accent);
+  }
+
+  #question{
+    font-size:22px; margin:20px 0 14px;
+  }
+
+  .option{
+    background:var(--panel);
+    padding:14px; border-radius:10px;
+    margin:8px 0; cursor:pointer; font-size:17px;
+    border:2px solid transparent;
+    transition:all .15s;
+  }
+
+  .option:hover{ 
+    border-color:var(--accent);
+    transform:translateY(-2px);
+  }
+
+  .option.correct{
+    background:rgba(78,225,193,0.12); border-color:var(--accent);
+  }
+  .option.wrong{
+    background:rgba(255,107,107,0.12); border-color:var(--wrong);
+  }
+
+  #nextBtn, #restartBtn{
+    margin-top:20px; width:100%; padding:14px;
+    border-radius:10px; border:0; cursor:pointer;
+    font-size:18px; font-weight:700;
+    background:linear-gradient(90deg,var(--accent),#5ffad1);
+    color:#0a0a0a;
+  }
+
+  #restartBtn{
+    background:transparent; border:2px solid var(--accent); color:var(--accent);
+  }
+
+  #scoreBox{
+    margin-top:20px; text-align:center;
+    font-size:26px; color:var(--accent); font-weight:700;
+  }
+
+  input[type="text"]{
+    width:100%; padding:12px; margin-top:10px;
+    background:var(--panel); border:2px solid transparent;
+    border-radius:10px; color:#fff;
+    font-size:16px;
+  }
+
+  input[type="text"]:focus{ border-color:var(--accent); outline:none; }
+</style>
+</head>
+
+<body>
+<div class="quiz-container">
+  <h1>Quiz Game Application</h1>
+
+  <div id="questionBox">
+      <div id="question"></div>
+      <div id="options"></div>
+  </div>
+
+  <button id="nextBtn" style="display:none">Next Question</button>
+
+  <div id="scoreBox"></div>
+  <button id="restartBtn" style="display:none">Restart Quiz</button>
+</div>
+
+<script>
+/* -------------------------
+   QUIZ QUESTION STRUCTURE
+   Supports:
+   - single choice
+   - multi select
+   - fill in the blank
+---------------------------*/
+
+const quizData = [
+  {
+    type: "single",
+    question: "Which language runs in the browser?",
+    options: ["Python", "C++", "JavaScript", "Java"],
+    answer: 2
+  },
+  {
+    type: "multi",
+    question: "Select all front-end technologies:",
+    options: ["HTML", "CSS", "Node.js", "React"],
+    answer: [0,1,3]
+  },
+  {
+    type: "fill",
+    question: "Fill in the blank: CSS stands for ______ Style Sheets.",
+    answer: "Cascading"
+  },
+  {
+    type: "single",
+    question: "Which tag is used for the largest heading in HTML?",
+    options: ["<h3>", "<h1>", "<h6>", "<header>"],
+    answer: 1
+  }
+];
+
+let currentIndex = 0;
+let score = 0;
+let selectedOptions = [];
+
+const questionEl = document.getElementById("question");
+const optionsEl = document.getElementById("options");
+const nextBtn = document.getElementById("nextBtn");
+const scoreBox = document.getElementById("scoreBox");
+const restartBtn = document.getElementById("restartBtn");
+
+loadQuestion();
+
+// Load Question
+function loadQuestion(){
+  const current = quizData[currentIndex];
+  questionEl.textContent = (currentIndex+1) + ". " + current.question;
+  optionsEl.innerHTML = "";
+
+  nextBtn.style.display = "none";
+  selectedOptions = [];
+
+  if(current.type === "single"){
+    current.options.forEach((opt,i)=>{
+      const div = document.createElement("div");
+      div.className = "option";
+      div.textContent = opt;
+      div.onclick = ()=> handleSingle(i);
+      optionsEl.appendChild(div);
+    });
+  }
+
+  else if(current.type === "multi"){
+    current.options.forEach((opt,i)=>{
+      const div = document.createElement("div");
+      div.className = "option";
+      div.textContent = opt;
+      div.onclick = ()=> handleMulti(div,i);
+      optionsEl.appendChild(div);
+    });
+  }
+
+  else if(current.type === "fill"){
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Type your answer...";
+    input.oninput = ()=>{ selectedOptions=[input.value]; nextBtn.style.display="block"; };
+    optionsEl.appendChild(input);
+  }
+}
+
+// Single-choice logic
+function handleSingle(i){
+  const current = quizData[currentIndex];
+  const options = document.querySelectorAll(".option");
+
+  options.forEach((opt,index)=>{
+    if(index === current.answer) opt.classList.add("correct");
+    else opt.classList.add("wrong");
+    opt.style.pointerEvents="none";
+  });
+
+  if(i === current.answer) score++;
+
+  nextBtn.style.display = "block";
+}
+
+// Multi-select logic
+function handleMulti(div,i){
+  if(selectedOptions.includes(i)){
+    selectedOptions = selectedOptions.filter(x => x !== i);
+    div.style.borderColor="transparent";
+  } else {
+    selectedOptions.push(i);
+    div.style.borderColor="var(--accent)";
+  }
+
+  nextBtn.style.display = "block";
+}
+
+// Next Button
+nextBtn.onclick = ()=>{
+  checkMultiAnswer();
+  currentIndex++;
+
+  if(currentIndex < quizData.length){
+    loadQuestion();
+  } else {
+    showScore();
+  }
+};
+
+// Check multi-select answer
+function checkMultiAnswer(){
+  const current = quizData[currentIndex];
+  if(current.type === "multi"){
+    const correct = JSON.stringify(current.answer.sort());
+    const user = JSON.stringify(selectedOptions.sort());
+    if(correct === user) score++;
+  }
+  if(current.type === "fill"){
+    if(selectedOptions[0]?.trim().toLowerCase() === current.answer.toLowerCase()) score++;
+  }
+}
+
+// Show Score
+function showScore(){
+  document.getElementById("questionBox").style.display="none";
+  nextBtn.style.display="none";
+
+  scoreBox.textContent = `Your Score: ${score} / ${quizData.length}`;
+  restartBtn.style.display = "block";
+}
+
+// Restart
+restartBtn.onclick = ()=>{
+  currentIndex = 0;
+  score = 0;
+  document.getElementById("questionBox").style.display="block";
+  restartBtn.style.display="none";
+  scoreBox.textContent = "";
+  loadQuestion();
+};
+</script>
+</body>
+</html>
