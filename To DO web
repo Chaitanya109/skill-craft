@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>To-Do Web App</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121217; --card:#1b1b22; --muted:#9aa0a6; --accent:#6ee7b7; --danger:#ff6b6b;
+    --glass: rgba(255,255,255,0.03);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+    background: linear-gradient(180deg,#0f0f11,#121217); color:#fff; display:flex; align-items:center; justify-content:center;
+    padding:28px;
+  }
+
+  .app {
+    width:100%; max-width:980px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+    padding:20px; border-radius:12px; box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+  header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
+  h1 { margin:0; font-size:20px; color:var(--accent); }
+  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+  form.add {
+    display:grid; gap:8px; grid-template-columns: 1fr 220px 120px;
+    margin-bottom:12px;
+  }
+  input[type="text"], input[type="datetime-local"], textarea, select {
+    background:var(--card); border:1px solid rgba(255,255,255,0.04); color:#fff; padding:10px; border-radius:8px;
+    font-size:14px; width:100%;
+  }
+  textarea { resize:vertical; min-height:40px; max-height:140px; }
+
+  button {
+    background:var(--glass); border:0; color:#fff; padding:10px 12px; border-radius:8px; cursor:pointer; font-weight:600;
+  }
+  button.primary { background: linear-gradient(90deg, rgba(110,231,183,0.12), rgba(110,231,183,0.06)); color:var(--accent); }
+  button.danger { background: linear-gradient(90deg, rgba(255,107,107,0.08), rgba(255,107,107,0.03)); color:var(--danger); }
+
+  .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+
+  .list {
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));
+    border-radius:10px; padding:12px; min-height:160px;
+  }
+
+  .task {
+    display:flex; gap:12px; align-items:flex-start; padding:10px; border-radius:8px; margin-bottom:8px;
+    background:transparent; transition: background .12s, transform .08s;
+    border:1px solid transparent;
+  }
+  .task.dragging { opacity:0.6; transform:scale(.995); }
+  .task:hover { border-color: rgba(255,255,255,0.03); background: rgba(255,255,255,0.01); }
+
+  .task .left { display:flex; align-items:center; gap:12px; }
+  .task .left input[type="checkbox"]{ width:18px; height:18px; transform:translateY(2px); }
+  .task .content { min-width:0; flex:1; }
+  .task .title { font-weight:700; margin:0 0 4px 0; font-size:15px; word-break:break-word; }
+  .task .meta { color:var(--muted); font-size:13px; display:flex; gap:8px; flex-wrap:wrap; }
+
+  .task.completed .title { text-decoration:line-through; color:rgba(255,255,255,0.6); }
+  .actions-inline { display:flex; gap:8px; align-items:center; margin-left:auto; }
+
+  .small { font-size:13px; color:var(--muted); }
+
+  .filters { display:flex; gap:6px; align-items:center; }
+  .filters button { padding:8px 10px; font-size:13px; }
+
+  .search { min-width:220px; }
+
+  .empty { text-align:center; color:var(--muted); padding:24px; }
+
+  .bottom-actions { margin-top:12px; display:flex; gap:8px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+
+  .export-area { display:flex; gap:8px; align-items:center; }
+
+  /* responsive */
+  @media (max-width:820px){
+    form.add { grid-template-columns: 1fr; }
+    .controls { justify-content:flex-end; }
+  }
+</style>
+</head>
+<body>
+  <main class="app" role="application" aria-label="To-do web app">
+    <header>
+      <div>
+        <h1>To-Do Web App</h1>
+        <div class="small">Add tasks, set due date/time, edit, mark complete, reorder, and persist to local storage.</div>
+      </div>
+
+      <div class="controls">
+        <div class="small">Filter</div>
+        <div class="filters" role="group" aria-label="Filter tasks">
+          <button id="filterAll" class="filterBtn" data-filter="all">All</button>
+          <button id="filterActive" class="filterBtn" data-filter="active">Active</button>
+          <button id="filterCompleted" class="filterBtn" data-filter="completed">Completed</button>
+        </div>
+      </div>
+    </header>
+
+    <form id="addForm" class="add" aria-label="Add task form">
+      <div>
+        <input id="title" type="text" placeholder="Task title (required)" required aria-label="Task title" />
+        <textarea id="desc" placeholder="Description (optional)" aria-label="Task description"></textarea>
+      </div>
+      <div>
+        <label class="small" for="due">Due date & time</label>
+        <input id="due" type="datetime-local" aria-label="Due date and time" />
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;justify-content:flex-end">
+        <button id="addBtn" class="primary" type="submit">Add Task</button>
+        <button id="clearAllBtn" type="button" class="danger">Clear All</button>
+      </div>
+    </form>
+
+    <div class="toolbar">
+      <input id="search" class="search" type="text" placeholder="Search tasks..." aria-label="Search tasks" />
+      <label class="small">Sort:</label>
+      <select id="sortSelect" aria-label="Sort tasks">
+        <option value="created-desc">Created (new → old)</option>
+        <option value="created-asc">Created (old → new)</option>
+        <option value="due-asc">Due date (earliest)</option>
+        <option value="due-desc">Due date (latest)</option>
+      </select>
+
+      <div style="margin-left:auto" class="export-area">
+        <button id="exportBtn">Export JSON</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none" />
+        <button id="importBtn">Import JSON</button>
+        <button id="clearCompleted">Clear Completed</button>
+      </div>
+    </div>
+
+    <section class="list" id="taskList" aria-live="polite" aria-label="Task list"></section>
+
+    <div class="bottom-actions">
+      <div class="small" id="counts"></div>
+      <div style="display:flex;gap:8px">
+        <button id="selectAll">Mark All Completed</button>
+        <button id="deselectAll">Mark All Active</button>
+      </div>
+    </div>
+  </main>
+
+<script>
+/* To-Do Web App JS
+   - Tasks stored as array of objects in localStorage under 'todo.tasks'
+   - Supports add, edit, delete, complete, reorder (drag & drop), filter, sort, search
+*/
+
+const STORAGE_KEY = 'todo.tasks.v1';
+
+let tasks = []; // {id, title, desc, due (ISO), createdAt, completed, order}
+let filter = 'all';
+let sortMode = 'created-desc';
+let searchTerm = '';
+
+const taskList = document.getElementById('taskList');
+const addForm = document.getElementById('addForm');
+const titleInput = document.getElementById('title');
+const descInput = document.getElementById('desc');
+const dueInput = document.getElementById('due');
+const searchInput = document.getElementById('search');
+const sortSelect = document.getElementById('sortSelect');
+const countsEl = document.getElementById('counts');
+const importFile = document.getElementById('importFile');
+
+function uid() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8); }
+
+// load/save
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    tasks = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    tasks = [];
+    console.error('Failed to load tasks', e);
+  }
+}
+load();
+
+// helpers
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString();
+}
+function compare(a,b) {
+  if (a === b) return 0;
+  return a > b ? 1 : -1;
+}
+
+// list management
+function render() {
+  // filter/search/sort
+  const filtered = tasks.filter(t => {
+    if (filter === 'active' && t.completed) return false;
+    if (filter === 'completed' && !t.completed) return false;
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase();
+      if (!(t.title.toLowerCase().includes(s) || (t.desc && t.desc.toLowerCase().includes(s)))) return false;
+    }
+    return true;
+  });
+
+  // sort
+  filtered.sort((a,b) => {
+    switch (sortMode) {
+      case 'created-desc': return compare(b.createdAt, a.createdAt);
+      case 'created-asc': return compare(a.createdAt, b.createdAt);
+      case 'due-asc':
+        if (!a.due && !b.due) return 0;
+        if (!a.due) return 1;
+        if (!b.due) return -1;
+        return compare(a.due, b.due);
+      case 'due-desc':
+        if (!a.due && !b.due) return 0;
+        if (!a.due) return 1;
+        if (!b.due) return -1;
+        return compare(b.due, a.due);
+      default: return 0;
+    }
+  });
+
+  // render order if no sorting action was chosen: preserve stored order
+  if (sortMode.startsWith('created') === false && sortMode.startsWith('due') === false) {
+    filtered.sort((a,b)=> (a.order||0) - (b.order||0));
+  }
+
+  taskList.innerHTML = '';
+  if (filtered.length === 0) {
+    taskList.innerHTML = '<div class="empty">No tasks — add your first task above.</div>';
+    updateCounts();
+    return;
+  }
+
+  filtered.forEach(task => {
+    const el = document.createElement('article');
+    el.className = 'task' + (task.completed ? ' completed' : '');
+    el.setAttribute('draggable','true');
+    el.dataset.id = task.id;
+
+    // left: checkbox
+    const left = document.createElement('div');
+    left.className = 'left';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!task.completed;
+    cb.addEventListener('change', () => {
+      task.completed = cb.checked;
+      save();
+      render();
+    });
+    left.appendChild(cb);
+
+    // content
+    const content = document.createElement('div');
+    content.className = 'content';
+    const title = document.createElement('h3'); title.className='title'; title.textContent = task.title;
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const created = document.createElement('span'); created.className='small'; created.textContent = 'Created: ' + formatDate(task.createdAt);
+    meta.appendChild(created);
+    if (task.due) {
+      const due = document.createElement('span'); due.className='small'; due.textContent = 'Due: ' + formatDate(task.due);
+      meta.appendChild(due);
+      // highlight overdue not completed
+      if (!task.completed && new Date(task.due) < new Date()) {
+        due.style.color = 'var(--danger)';
+      }
+    }
+    if (task.desc) {
+      const p = document.createElement('div'); p.className='small'; p.style.marginTop='6px'; p.textContent = task.desc;
+      content.appendChild(title);
+      content.appendChild(p);
+      content.appendChild(meta);
+    } else {
+      content.appendChild(title);
+      content.appendChild(meta);
+    }
+
+    // actions: edit/delete
+    const actions = document.createElement('div'); actions.className = 'actions-inline';
+    const editBtn = document.createElement('button'); editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', ()=> openEdit(task));
+    const delBtn = document.createElement('button'); delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', ()=> {
+      if (!confirm('Delete task "' + task.title + '"?')) return;
+      tasks = tasks.filter(t => t.id !== task.id);
+      save(); render();
+    });
+
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+
+    el.appendChild(left);
+    el.appendChild(content);
+    el.appendChild(actions);
+
+    // drag handlers
+    el.addEventListener('dragstart', dragStart);
+    el.addEventListener('dragend', dragEnd);
+    el.addEventListener('dragover', dragOver);
+    el.addEventListener('drop', dropHandler);
+
+    taskList.appendChild(el);
+  });
+
+  updateCounts();
+}
+
+function updateCounts(){
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.completed).length;
+  const active = total - completed;
+  countsEl.textContent = `Total: ${total} • Active: ${active} • Completed: ${completed}`;
+}
+
+/* Add */
+addForm.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const title = titleInput.value.trim();
+  if (!title) { titleInput.focus(); return; }
+  const desc = descInput.value.trim();
+  const due = dueInput.value ? new Date(dueInput.value).toISOString() : null;
+  const newTask = {
+    id: uid(),
+    title, desc,
+    due,
+    createdAt: new Date().toISOString(),
+    completed: false,
+    order: tasks.length ? Math.max(...tasks.map(t=>t.order||0)) + 1 : 0
+  };
+  tasks.push(newTask);
+  save();
+  titleInput.value=''; descInput.value=''; dueInput.value='';
+  render();
+});
+
+/* Editing */
+function openEdit(task) {
+  // open simple inline edit modal using browser prompt for simplicity (but keep accessible)
+  const newTitle = prompt('Edit title', task.title);
+  if (newTitle === null) return;
+  task.title = newTitle.trim() || task.title;
+  const newDesc = prompt('Edit description (leave empty to clear)', task.desc || '');
+  if (newDesc !== null) task.desc = newDesc.trim();
+  const newDue = prompt('Edit due date (YYYY-MM-DDTHH:MM) or blank to clear', task.due ? task.due.slice(0,16) : '');
+  if (newDue !== null) {
+    task.due = newDue.trim() ? new Date(newDue).toISOString() : null;
+  }
+  save(); render();
+}
+
+/* Filters, search, sort */
+document.querySelectorAll('.filterBtn').forEach(btn => {
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.filterBtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    filter = btn.dataset.filter;
+    render();
+  });
+});
+// default active style
+document.querySelector('[data-filter="all"]').classList.add('active');
+
+searchInput.addEventListener('input', (e)=> {
+  searchTerm = e.target.value.trim();
+  render();
+});
+
+sortSelect.addEventListener('change', (e)=>{
+  sortMode = e.target.value;
+  render();
+});
+
+/* Clear all / clear completed / select all */
+document.getElementById('clearAllBtn').addEventListener('click', ()=>{
+  if (!confirm('Clear ALL tasks?')) return;
+  tasks = [];
+  save(); render();
+});
+document.getElementById('clearCompleted').addEventListener('click', ()=>{
+  if (!confirm('Remove all completed tasks?')) return;
+  tasks = tasks.filter(t => !t.completed);
+  save(); render();
+});
+document.getElementById('selectAll').addEventListener('click', ()=>{
+  tasks.forEach(t=>t.completed=true); save(); render();
+});
+document.getElementById('deselectAll').addEventListener('click', ()=>{
+  tasks.forEach(t=>t.completed=false); save(); render();
+});
+
+/* Export / Import */
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const data = JSON.stringify(tasks, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'todo-export.json';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', ()=> importFile.click());
+importFile.addEventListener('change', (ev)=>{
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      if (!Array.isArray(imported)) throw new Error('Invalid format');
+      // merge: keep existing tasks, append imported with new ids to avoid id clash
+      const mapped = imported.map(t => ({
+        id: uid(),
+        title: t.title || 'Imported task',
+        desc: t.desc || '',
+        due: t.due || null,
+        createdAt: t.createdAt || new Date().toISOString(),
+        completed: !!t.completed,
+        order: tasks.length ? Math.max(...tasks.map(x=>x.order||0)) + 1 : 0
+      }));
+      tasks = tasks.concat(mapped);
+      save(); render();
+      importFile.value = '';
+    } catch (err) {
+      alert('Failed to import: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+/* Drag & drop reorder */
+let dragSrcId = null;
+function dragStart(e) {
+  dragSrcId = this.dataset.id;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function dragEnd() {
+  this.classList.remove('dragging');
+  dragSrcId = null;
+}
+function dragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const over = this;
+  const rect = over.getBoundingClientRect();
+  // highlight drop target
+  over.style.borderColor = 'rgba(255,255,255,0.06)';
+}
+function dropHandler(e) {
+  e.preventDefault();
+  const targetId = this.dataset.id;
+  // restore borders
+  document.querySelectorAll('.task').forEach(el=> el.style.borderColor = 'transparent');
+
+  if (!dragSrcId || dragSrcId === targetId) return;
+  // reorder tasks: move dragged before target
+  const srcIndex = tasks.findIndex(t=>t.id===dragSrcId);
+  const tgtIndex = tasks.findIndex(t=>t.id===targetId);
+  if (srcIndex < 0 || tgtIndex < 0) return;
+  const [moved] = tasks.splice(srcIndex,1);
+  tasks.splice(tgtIndex,0,moved);
+  // reassign order values to keep persistence of order
+  tasks.forEach((t,i)=> t.order = i);
+  save();
+  render();
+}
+
+/* Initialize: apply stored filter/sort/search from UI if any */
+(function init(){
+  // load tasks from storage already called
+  render();
+})();
+
+</script>
+</body>
+</html>
