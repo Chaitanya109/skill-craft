@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stopwatch Web App</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1f2026;
+    --card:#2a2b33;
+    --accent:#6ee7b7;
+    --muted:#bfc3cc;
+    --danger:#ff6b6b;
+    --glass: rgba(255,255,255,0.04);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg, #16161a 0%, #1f2026 100%);
+    color: #fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+  }
+
+  .app {
+    width:100%;
+    max-width:980px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+    border-radius:14px;
+    padding:28px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display:grid;
+    grid-template-columns: 1fr 360px;
+    gap:24px;
+    align-items:stretch;
+  }
+
+  /* Left: big display + controls */
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:10px;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    min-height:260px;
+  }
+
+  .time {
+    font-weight:900;
+    font-size: clamp(34px, 8vw, 72px);
+    letter-spacing: 1px;
+    text-align:center;
+    margin:18px 0;
+    color: var(--accent);
+  }
+
+  .controls {
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  button {
+    appearance:none;
+    border: none;
+    background: var(--glass);
+    color: #fff;
+    padding:10px 18px;
+    border-radius:10px;
+    font-weight:600;
+    cursor:pointer;
+    min-width:100px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
+  }
+
+  button.primary {
+    background: linear-gradient(90deg, rgba(110,231,183,0.15), rgba(110,231,183,0.08));
+    color: var(--accent);
+    border: 1px solid rgba(110,231,183,0.12);
+  }
+
+  button.ghost {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--muted);
+  }
+
+  button.danger {
+    background: linear-gradient(90deg, rgba(255,107,107,0.07), rgba(255,107,107,0.04));
+    color: var(--danger);
+    border: 1px solid rgba(255,107,107,0.08);
+  }
+
+  .meta {
+    display:flex;
+    justify-content:space-between;
+    color:var(--muted);
+    font-size:13px;
+    margin-top:8px;
+  }
+
+  /* Right column: laps */
+  .side {
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+    border-radius:10px;
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    min-height:260px;
+  }
+
+  .side h3 {
+    margin:0;
+    font-weight:700;
+    font-size:15px;
+    color:var(--muted);
+  }
+
+  .laps {
+    overflow:auto;
+    background: rgba(0,0,0,0.03);
+    border-radius:8px;
+    padding:8px;
+    flex:1;
+  }
+
+  .lap-row {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 10px;
+    font-size:14px;
+    border-radius:6px;
+    transition:background .12s;
+    color: #eef2f5;
+  }
+  .lap-row:nth-child(odd){background: rgba(255,255,255,0.01)}
+  .lap-row strong{color:var(--accent);}
+
+  .small {
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .empty {
+    color: rgba(255,255,255,0.12);
+    text-align:center;
+    padding:18px 8px;
+    font-size:13px;
+  }
+
+  .actions {
+    display:flex;
+    gap:8px;
+    justify-content:flex-end;
+  }
+
+  .footer-note{
+    font-size:12px;
+    color:var(--muted);
+    text-align:center;
+    margin-top:10px;
+  }
+
+  /* responsive */
+  @media (max-width:880px){
+    .app{grid-template-columns: 1fr; max-width:720px}
+    .side{order:2}
+    .panel{order:1}
+  }
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Stopwatch web application">
+    <div class="panel">
+      <div>
+        <div class="small" style="text-align:center">Task 02 • Stopwatch Web Application</div>
+        <div id="display" class="time" aria-live="polite">00:00.000</div>
+        <div class="meta">
+          <div>State: <span id="stateText">Stopped</span></div>
+          <div>Saved laps: <span id="lapCount">0</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="controls" role="group" aria-label="stopwatch controls">
+          <button id="startPauseBtn" class="primary" aria-pressed="false">Start</button>
+          <button id="lapBtn" class="ghost" disabled>Lap</button>
+          <button id="resetBtn" class="danger" disabled>Reset</button>
+        </div>
+
+        <div class="footer-note">
+          Keyboard: Space = Start/Pause • L = Lap • R = Reset
+        </div>
+      </div>
+    </div>
+
+    <aside class="side" aria-label="Laps">
+      <h3>Laps</h3>
+      <div class="laps" id="lapsContainer" role="list" aria-live="polite">
+        <div class="empty" id="noLaps">No laps yet — press "Lap" or hit L</div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="small">Export:</div>
+        <div class="actions" style="margin-left:auto">
+          <button id="copyBtn" class="ghost" disabled>Copy CSV</button>
+          <button id="downloadBtn" class="ghost" disabled>Download CSV</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+<script>
+/*
+  Accurate stopwatch using performance.now()
+  Features:
+  - Start / Pause toggle (requestAnimationFrame)
+  - Reset (clear laps, time)
+  - Lap capture (records time at moment)
+  - Keyboard shortcuts: Space, L, R
+  - Export laps to CSV (copy to clipboard + download)
+*/
+
+(function(){
+  // Elements
+  const display = document.getElementById('display');
+  const startPauseBtn = document.getElementById('startPauseBtn');
+  const lapBtn = document.getElementById('lapBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const lapsContainer = document.getElementById('lapsContainer');
+  const noLaps = document.getElementById('noLaps');
+  const lapCountEl = document.getElementById('lapCount');
+  const stateText = document.getElementById('stateText');
+  const copyBtn = document.getElementById('copyBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  // Timing state
+  let running = false;
+  let rafId = null;
+  let tStart = 0;           // timestamp when current run started (performance.now())
+  let storedElapsed = 0;    // millis already elapsed before current run (paused time)
+  let laps = [];            // array of elapsed ms snapshots
+
+  // Format ms -> mm:ss.mmm
+  function fmt(ms) {
+    // ms is number (float) in milliseconds
+    const totalMs = Math.floor(ms);
+    const minutes = Math.floor(totalMs / 60000);
+    const seconds = Math.floor((totalMs % 60000) / 1000);
+    const mill = totalMs % 1000;
+    const mm = String(minutes).padStart(2,'0');
+    const ss = String(seconds).padStart(2,'0');
+    const mmm = String(mill).padStart(3,'0');
+    return `${mm}:${ss}.${mmm}`;
+  }
+
+  function getElapsed() {
+    if (running) {
+      return storedElapsed + (performance.now() - tStart);
+    } else {
+      return storedElapsed;
+    }
+  }
+
+  function render() {
+    const ms = getElapsed();
+    display.textContent = fmt(ms);
+    // loop
+    rafId = requestAnimationFrame(render);
+  }
+
+  function start() {
+    if (running) return;
+    running = true;
+    tStart = performance.now();
+    startPauseBtn.textContent = 'Pause';
+    startPauseBtn.setAttribute('aria-pressed','true');
+    lapBtn.disabled = false;
+    resetBtn.disabled = false;
+    stateText.textContent = 'Running';
+    // start updating via rAF
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(render);
+  }
+
+  function pause() {
+    if (!running) return;
+    running = false;
+    // accumulate elapsed
+    storedElapsed += performance.now() - tStart;
+    cancelAnimationFrame(rafId);
+    startPauseBtn.textContent = 'Start';
+    startPauseBtn.setAttribute('aria-pressed','false');
+    stateText.textContent = 'Paused';
+  }
+
+  function reset() {
+    running = false;
+    cancelAnimationFrame(rafId);
+    tStart = 0;
+    storedElapsed = 0;
+    laps = [];
+    display.textContent = '00:00.000';
+    startPauseBtn.textContent = 'Start';
+    startPauseBtn.setAttribute('aria-pressed','false');
+    lapBtn.disabled = true;
+    resetBtn.disabled = true;
+    copyBtn.disabled = true;
+    downloadBtn.disabled = true;
+    lapCountEl.textContent = '0';
+    stateText.textContent = 'Stopped';
+    // clear laps UI
+    lapsContainer.innerHTML = '';
+    lapsContainer.appendChild(noLaps);
+  }
+
+  function recordLap() {
+    const ms = getElapsed();
+    // store lap time in ms
+    laps.unshift(ms); // newest first
+    renderLaps();
+    lapCountEl.textContent = String(laps.length);
+    copyBtn.disabled = false;
+    downloadBtn.disabled = false;
+  }
+
+  function renderLaps() {
+    lapsContainer.innerHTML = '';
+    if (laps.length === 0) {
+      lapsContainer.appendChild(noLaps);
+      return;
+    }
+    // build rows: Lap 1 = most recent
+    for (let i = 0; i < laps.length; i++) {
+      const li = document.createElement('div');
+      li.className = 'lap-row';
+      const lapNum = document.createElement('div');
+      lapNum.innerHTML = `<div class="small">Lap ${laps.length - i}</div><strong>${fmt(laps[i])}</strong>`;
+      const diff = document.createElement('div');
+      diff.className = 'small';
+      // compute split/delta relative to previous lap (older)
+      let delta = laps[i];
+      if (i > 0) delta = Math.abs(laps[i] - laps[i-1]);
+      diff.textContent = `Δ ${fmt(delta)}`;
+      li.appendChild(lapNum);
+      li.appendChild(diff);
+      lapsContainer.appendChild(li);
+    }
+  }
+
+  // Exports CSV
+  function lapsToCSV() {
+    // CSV header & rows (Lap Number, Time(ms), Formatted Time)
+    const rows = [['Lap','Time_ms','Time_formatted']];
+    for (let i = 0; i < laps.length; i++) {
+      const lapNo = laps.length - i; // 1-based descending
+      rows.push([String(lapNo), String(Math.round(laps[i])), fmt(laps[i])]);
+    }
+    return rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  }
+
+  async function copyCSVToClipboard() {
+    const csv = lapsToCSV();
+    try {
+      await navigator.clipboard.writeText(csv);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(()=> copyBtn.textContent = 'Copy CSV', 1200);
+    } catch(e) {
+      copyBtn.textContent = 'Copy Failed';
+      setTimeout(()=> copyBtn.textContent = 'Copy CSV', 1200);
+      console.warn('Clipboard copy failed', e);
+    }
+  }
+
+  function downloadCSV() {
+    const csv = lapsToCSV();
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stopwatch_laps_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // Events
+  startPauseBtn.addEventListener('click', ()=>{
+    if (!running) start();
+    else pause();
+  });
+
+  lapBtn.addEventListener('click', ()=>{
+    if (!running && storedElapsed === 0) return;
+    recordLap();
+  });
+
+  resetBtn.addEventListener('click', reset);
+
+  copyBtn.addEventListener('click', copyCSVToClipboard);
+  downloadBtn.addEventListener('click', downloadCSV);
+
+  // keyboard shortcuts
+  window.addEventListener('keydown', (ev) => {
+    const tag = document.activeElement && document.activeElement.tagName;
+    // avoid conflicts when typing in an input (none here but safe)
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (ev.code === 'Space') {
+      ev.preventDefault();
+      if (!running) start(); else pause();
+    } else if (ev.key === 'l' || ev.key === 'L') {
+      if (!lapBtn.disabled) recordLap();
+    } else if (ev.key === 'r' || ev.key === 'R') {
+      reset();
+    }
+  });
+
+  // initialize
+  reset();
+})();
+</script>
+</body>
+</html>
